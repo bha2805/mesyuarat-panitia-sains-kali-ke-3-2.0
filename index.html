@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pengurusan Mesyuarat & Dokumen Panitia</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <!-- Load html2canvas for certificate generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        .tab-button {
+            transition: all 0.2s;
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+        .tab-button.active {
+            border-bottom: 4px solid #3b82f6;
+            background-color: #ffffff;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+        /* Styling untuk Sijil (Certificate) */
+        #certificate-template {
+            width: 1000px;
+            height: 700px;
+            margin: auto;
+            border: 15px solid #2563eb;
+            background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 100%);
+            padding: 40px;
+            box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        #csv-output {
+            resize: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="bg-white shadow-lg rounded-xl p-4 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Sistem Dokumen & Mesyuarat Panitia</h1>
+            <p class="text-sm text-gray-500 mt-1" id="user-info">
+                Memuatkan pengguna... ID Pengguna: <span id="user-id-display">N/A</span>
+            </p>
+        </header>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="text-center p-8 text-blue-600 font-medium hidden">
+            <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mr-2"></div>
+            Memuatkan data dan mengesahkan pengguna...
+        </div>
+
+        <!-- Main Content (Hidden until loaded) -->
+        <div id="main-content" class="hidden">
+            <!-- Navigation Tabs -->
+            <div class="flex flex-wrap border-b border-gray-200 bg-white rounded-t-lg shadow-md p-2">
+                <button data-tab="1" class="tab-button active py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(1)">1. Daftar Guru/IC</button>
+                <button data-tab="2" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(2)">2. Analisis Peperiksaan / UASA</button>
+                <button data-tab="3" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(3)">3. Analisis PBD</button>
+                <button data-tab="4" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(4)">4. Prestasi Belanjawan</button>
+                <button data-tab="5" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(5)">5. Post Mortem Program Panitia</button>
+                <button data-tab="6" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(6)">6. Persediaan Perancangan Strategik 2026</button>
+                <button data-tab="7" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(7)">7. Senarai Guru Mengajar 2026</button>
+                <button data-tab="9" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50" onclick="switchTab(9)">8. Minit Mesyuarat / Surat Panggilan</button>
+                <button data-tab="8" class="tab-button py-2 px-4 text-sm text-gray-600 hover:bg-gray-50 ml-auto bg-green-500 text-white hover:bg-green-600" onclick="switchTab(8)">PENGURUSAN MESYUARAT</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="tab-content" class="bg-white p-6 rounded-b-lg shadow-md min-h-[60vh] border-t-2 border-gray-100">
+
+                <!-- Tab 1: Daftar Guru/IC -->
+                <div id="tab-1" class="tab-pane">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">1. Pendaftaran Guru dan No. Kad Pengenalan</h2>
+                    <p class="text-sm text-gray-600 mb-4">Isi nama penuh dan No. IC untuk pangkalan data panitia. Data ini diperlukan untuk rekod kehadiran dan sijil.</p>
+                    <div id="teacher-list" class="space-y-4">
+                        <!-- Teacher list will be loaded here -->
+                        <div class="text-gray-500">Tiada data guru dimuatkan. Sila masukkan data baru.</div>
+                    </div>
+
+                    <div class="mt-6 p-4 border rounded-lg bg-gray-50">
+                        <h3 class="font-semibold text-lg mb-2">Tambah Guru Baru</h3>
+                        <input type="text" id="new-teacher-name" placeholder="Nama Penuh Guru" class="w-full p-2 border rounded-lg mb-2 focus:ring-blue-500 focus:border-blue-500">
+                        <input type="text" id="new-teacher-ic" placeholder="No. Kad Pengenalan (Contoh: 810101145053)" class="w-full p-2 border rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500">
+                        <button onclick="addTeacher()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition w-full">
+                            Tambah Guru
+                        </button>
+                    </div>
+
+                    <!-- Export to CSV Section -->
+                    <div class="mt-6 p-4 border-2 border-purple-400 rounded-lg bg-purple-50">
+                        <h3 class="font-semibold text-lg mb-2 text-purple-800">Eksport Data ke Google Sheets (Pilihan Manual)</h3>
+                        <p class="text-sm text-gray-600 mb-4">Gunakan fungsi ini untuk memuat turun data bagi diimport ke Google Sheets anda (cth: <a href="https://docs.google.com/spreadsheets/d/1kPf5x3kgVzYo7HGAZtjR2oK1yugSqvmnoNw_mn0qeI0/edit" target="_blank" class="text-blue-500 hover:underline">Google Sheet anda</a>).</p>
+                        
+                        <button onclick="exportTeachersToCSV()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition w-full">
+                            Muat Turun Data Guru (CSV)
+                        </button>
+                        
+                        <div class="mt-4">
+                             <label for="csv-output" class="block text-sm font-medium text-gray-700 mb-1">Salin Data (CSV Format):</label>
+                             <textarea id="csv-output" rows="5" placeholder="Klik butang di atas untuk menjana data CSV..." readonly class="w-full p-2 border rounded-lg bg-white font-mono text-sm"></textarea>
+                             <button onclick="copyCSV()" class="mt-2 bg-gray-300 text-gray-800 px-3 py-1 rounded-lg hover:bg-gray-400 transition text-sm">Salin ke Papan Klip</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Analisis Peperiksaan / UASA (Linked to Google Drive) -->
+                <div id="tab-2" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">2. Analisis Keputusan Peperiksaan / UASA</h2>
+                    <div class="p-6 border-2 border-yellow-400 rounded-lg bg-yellow-50 shadow-md text-center">
+                        <p class="text-lg font-medium text-gray-800 mb-4">Sila akses folder Google Drive untuk melihat dan mengemaskini data Analisis Peperiksaan / UASA:</p>
+                        <a href="https://drive.google.com/drive/folders/1MOAisUwUvThOEGu2Go6zjGdkl5f8C0Vt" target="_blank" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 transition duration-150 ease-in-out">
+                            <!-- Icon Drive -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            Akses Folder Google Drive UASA
+                        </a>
+                        <p class="mt-4 text-sm text-gray-600">Pautan akan dibuka dalam tetingkap baru.</p>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Analisis PBD (Linked to Google Drive) -->
+                <div id="tab-3" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">3. Analisis Pelaksanaan Pentaksiran Bilik Darjah (PBD)</h2>
+                    <div class="p-6 border-2 border-red-400 rounded-lg bg-red-50 shadow-md text-center">
+                        <p class="text-lg font-medium text-gray-800 mb-4">Sila akses folder Google Drive untuk melihat dan mengemaskini data Analisis PBD:</p>
+                        <a href="https://drive.google.com/drive/folders/1mvaEm6tGOzs_czBYZ3WmVe3TMMDgE-cG" target="_blank" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 transition duration-150 ease-in-out">
+                            <!-- Icon Drive -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            Akses Folder Google Drive PBD
+                        </a>
+                        <p class="mt-4 text-sm text-gray-600">Pautan akan dibuka dalam tetingkap baru.</p>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Prestasi Belanjawan (Linked to Google Drive) -->
+                <div id="tab-4" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">4. Prestasi Belanjawan Panitia</h2>
+                    <div class="p-6 border-2 border-yellow-400 rounded-lg bg-yellow-50 shadow-md text-center">
+                        <p class="text-lg font-medium text-gray-800 mb-4">Sila akses folder Google Drive untuk melihat dan mengemaskini data Prestasi Belanjawan Panitia:</p>
+                        <a href="https://drive.google.com/drive/folders/1ZY0jM4XTYdvlKg2Jv-0TvBVVn7RmQvzx" target="_blank" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 transition duration-150 ease-in-out">
+                            <!-- Icon Drive -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            Akses Folder Google Drive Belanjawan
+                        </a>
+                        <p class="mt-4 text-sm text-gray-600">Pautan akan dibuka dalam tetingkap baru.</p>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Post Mortem Program Panitia (Linked to Google Drive) -->
+                <div id="tab-5" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">5. Post Mortem Program Panitia</h2>
+                    <div class="p-6 border-2 border-yellow-400 rounded-lg bg-yellow-50 shadow-md text-center">
+                        <p class="text-lg font-medium text-gray-800 mb-4">Sila akses folder Google Drive untuk melihat dan mengemaskini data Post Mortem Program Panitia:</p>
+                        <a href="https://drive.google.com/drive/folders/1Sbyxt2SSvMfxKDzG83id9THIChw2WRyC" target="_blank" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 transition duration-150 ease-in-out">
+                            <!-- Icon Drive -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            Akses Folder Google Drive Post Mortem
+                        </a>
+                        <p class="mt-4 text-sm text-gray-600">Pautan akan dibuka dalam tetingkap baru.</p>
+                    </div>
+                </div>
+
+                <!-- Tab 6: Persediaan Perancangan Strategik 2026 (Using Firestore) -->
+                <div id="tab-6" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">6. Persediaan Perancangan Strategik Panitia 2026</h2>
+                    <textarea id="data-strategic-plan" rows="10" placeholder="Draf SWOT/TOWS, Misi, Visi, dan Objektif Jangka Panjang panitia untuk tahun 2026. Fokuskan kepada hala tuju strategik." class="w-full p-3 border rounded-lg focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    <button onclick="saveDocument('strategic_plan_2026', 'data-strategic-plan')" class="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Simpan Perancangan Strategik</button>
+                </div>
+
+                <!-- Tab 7: Senarai Guru Mengajar 2026 (Linked to Google Drive) -->
+                <div id="tab-7" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">7. Senarai Guru Mengajar 2026</h2>
+                    <div class="p-6 border-2 border-red-400 rounded-lg bg-red-50 shadow-md text-center">
+                        <p class="text-lg font-medium text-gray-800 mb-4">Sila akses folder Google Drive untuk melihat dan mengemaskini data Senarai Guru Mengajar 2026:</p>
+                        <a href="https://drive.google.com/drive/folders/12kInS0Y6qxnTTgboaA7nNY-gqsYMFvp0" target="_blank" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 transition duration-150 ease-in-out">
+                            <!-- Icon Drive -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            Akses Folder Google Drive Senarai Guru
+                        </a>
+                        <p class="mt-4 text-sm text-gray-600">Pautan akan dibuka dalam tetingkap baru.</p>
+                    </div>
+                </div>
+                
+                <!-- Tab 9: Minit Mesyuarat / Surat Panggilan (Linked to Google Drive) -->
+                <div id="tab-9" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-4">8. Minit Mesyuarat dan Surat Panggilan Mesyuarat</h2>
+                    <div class="p-6 border-2 border-indigo-400 rounded-lg bg-indigo-50 shadow-md text-center">
+                        <p class="text-lg font-medium text-gray-800 mb-4">Sila akses folder Google Drive untuk memuat naik dan melihat dokumen rasmi Minit Mesyuarat dan Surat Panggilan:</p>
+                        <a href="https://drive.google.com/drive/folders/1_E77GKjHaeLSx-ixENrmPyQU8PoEQuT_" target="_blank" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 transition duration-150 ease-in-out">
+                            <!-- Icon Drive -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            Akses Folder Google Drive Minit/Surat
+                        </a>
+                        <p class="mt-4 text-sm text-gray-600">Pautan akan dibuka dalam tetingkap baru.</p>
+                    </div>
+                </div>
+
+                <!-- Tab 8: Pengurusan Mesyuarat (Input Bahan, Kehadiran, Sijil) -->
+                <div id="tab-8" class="tab-pane hidden">
+                    <h2 class="text-2xl font-semibold text-blue-700 mb-6">PENGURUSAN MESYUARAT PANITIA</h2>
+
+                    <!-- 1. Daftar Maklumat Mesyuarat -->
+                    <div class="p-4 border rounded-lg shadow-sm mb-6 bg-blue-50">
+                        <h3 class="text-xl font-semibold text-blue-800 mb-3">A. Daftar Mesyuarat Baru</h3>
+                        <input type="text" id="meeting-title" placeholder="Tajuk Mesyuarat (Cth: Mesyuarat Panitia Bil. 3/2025)" class="w-full p-2 border rounded-lg mb-2 focus:ring-blue-500 focus:border-blue-500">
+                        <input type="date" id="meeting-date" class="w-full p-2 border rounded-lg mb-2 focus:ring-blue-500 focus:border-blue-500">
+                        <textarea id="meeting-materials" rows="3" placeholder="Pautan atau ringkasan bahan mesyuarat" class="w-full p-2 border rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        <button onclick="createMeeting()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition w-full">
+                            Simpan Mesyuarat
+                        </button>
+                    </div>
+
+                    <!-- 2. Pilih Mesyuarat & Ambil Kehadiran -->
+                    <div class="p-4 border rounded-lg shadow-sm mb-6 bg-white">
+                        <h3 class="text-xl font-semibold text-blue-800 mb-3">B. Rekod Kehadiran</h3>
+                        <label for="meeting-select" class="block text-sm font-medium text-gray-700 mb-1">Pilih Mesyuarat:</label>
+                        <select id="meeting-select" onchange="loadAttendanceList()" class="w-full p-2 border rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Pilih Mesyuarat --</option>
+                        </select>
+
+                        <div id="attendance-list-container" class="space-y-3">
+                            <p class="text-gray-500 italic">Pilih mesyuarat di atas untuk mengambil kehadiran.</p>
+                            <!-- Attendance checkboxes will be loaded here -->
+                        </div>
+                        <button onclick="saveAttendance()" id="save-attendance-btn" class="mt-4 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition w-full disabled:opacity-50" disabled>
+                            Simpan Kehadiran
+                        </button>
+                    </div>
+
+                    <!-- 3. Jana Sijil -->
+                    <div class="p-4 border rounded-lg shadow-sm bg-green-50">
+                        <h3 class="text-xl font-semibold text-green-800 mb-3">C. Jana Sijil Kehadiran</h3>
+                        <label for="teacher-select-sijil" class="block text-sm font-medium text-gray-700 mb-1">Pilih Guru untuk Sijil:</label>
+                        <select id="teacher-select-sijil" class="w-full p-2 border rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Pilih Guru --</option>
+                        </select>
+                        
+                        <label for="meeting-select-sijil" class="block text-sm font-medium text-gray-700 mb-1">Pilih Mesyuarat untuk Sijil:</label>
+                        <select id="meeting-select-sijil" class="w-full p-2 border rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Pilih Mesyuarat --</option>
+                        </select>
+
+                        <button onclick="openCertificateModal()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition w-full">
+                            Lihat & Jana Sijil
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sijil Kehadiran -->
+    <div id="certificate-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-lg shadow-2xl relative max-w-[1050px] w-full p-4">
+            <button onclick="closeCertificateModal()" class="absolute top-3 right-3 text-gray-600 hover:text-gray-900 text-2xl font-bold">&times;</button>
+            
+            <h3 class="text-center text-2xl font-bold mb-4">Sijil Penghargaan Kehadiran</h3>
+            
+            <div id="certificate-template" class="relative">
+                <div class="text-center">
+                    
+                    <!-- LOGO SMK JERAI - Kini menggunakan logo yang dimuat naik (logo smk jerai.jpg) -->
+                    <img id="school-logo" 
+                         src="uploaded:logo smk jerai.jpg"
+                         alt="Logo SMK Jerai" 
+                         class="mx-auto mb-6 w-24 h-24 object-contain">
+                    <!-- TAMAT RUANG LOGO -->
+
+                    <h1 class="text-4xl font-extrabold text-red-700 mb-2 border-b-2 border-red-700 pb-2">SIJIL PENGHARGAAN</h1>
+                    <p class="text-xl text-gray-700 font-medium mb-8">Disampaikan kepada</p>
+                    
+                    <p id="cert-recipient-name" class="text-6xl font-serif font-bold text-blue-800 mb-4 capitalize">NAMA GURU</p>
+                    <p id="cert-recipient-ic" class="text-lg text-gray-600 mb-12">No. K/P: XXXXXX-XX-XXXX</p>
+
+                    <p class="text-2xl text-gray-700 mb-10">Atas kehadiran dan komitmen sebagai Ahli Jawatankuasa Panitia dalam</p>
+                    
+                    <p id="cert-meeting-title" class="text-4xl font-bold text-green-700 mb-10 italic">TAJUK MESYUARAT PANITIA</p>
+
+                    <p class="text-xl text-gray-700 mb-12">Yang telah diadakan pada <span id="cert-meeting-date" class="font-bold text-gray-800">TARIKH</span></p>
+
+                    <div class="flex justify-around items-end mt-12">
+                        <div>
+                            <p class="mt-2 text-lg font-semibold text-gray-800">Tandatangan Pengerusi Panitia</p>
+                            <p class="text-sm text-gray-500">(NAMA PENGERUSI)</p>
+                        </div>
+                        <div>
+                            <p class="mt-2 text-lg font-semibold text-gray-800">Cop Sekolah</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <p class="text-sm text-red-500 mb-2 font-medium">Logo sekolah telah dimuatkan. Sila semak paparan sebelum muat turun.</p>
+                <button onclick="downloadCertificate()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition shadow-lg">
+                    Muat Turun Sijil (PNG)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE AND APP LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, updateDoc, arrayUnion, arrayRemove
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase Variables (Mandatory)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // App State
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+        
+        // Data State
+        let teachers = []; // List of { id, name, ic }
+        let meetings = []; // List of { id, title, date, materials, attendance: [] }
+
+        // --- Utility Functions ---
+
+        // Helper to get document reference for a public document (Tabs 2-7 data)
+        const getPublicDocRef = (docName) => {
+            if (!db) throw new Error("Firestore not initialized.");
+            return doc(db, 'artifacts', appId, 'public', 'data', 'panitia_documents', docName);
+        };
+
+        // Helper to get the teachers collection reference (public data)
+        const getTeachersCollectionRef = () => {
+            if (!db) throw new Error("Firestore not initialized.");
+            return collection(db, 'artifacts', appId, 'public', 'data', 'teachers');
+        };
+
+        // Helper to get the meetings collection reference (public data)
+        const getMeetingsCollectionRef = () => {
+            if (!db) throw new Error("Firestore not initialized.");
+            return collection(db, 'artifacts', appId, 'public', 'data', 'meetings');
+        };
+
+        const showMessage = (text, isError = false) => {
+            const container = document.getElementById('user-info');
+            container.innerHTML = `<span class="${isError ? 'text-red-600' : 'text-green-600'} font-semibold">${text}</span>`;
+            setTimeout(() => {
+                container.innerHTML = `Selamat datang. ID Pengguna: <span id="user-id-display">${userId}</span>`;
+            }, 5000);
+        };
+        
+        // Helper to copy text to clipboard
+        window.copyCSV = () => {
+             const textarea = document.getElementById('csv-output');
+             textarea.select();
+             try {
+                // Use execCommand('copy') as navigator.clipboard might not work in iframe
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showMessage('Data CSV berjaya disalin ke papan klip.');
+                } else {
+                    showMessage('Gagal menyalin. Sila salin secara manual.', true);
+                }
+            } catch (err) {
+                console.error('Copy failed:', err);
+                showMessage('Gagal menyalin. Sila salin secara manual.', true);
+            }
+        };
+
+        // --- Firebase Initialization and Authentication ---
+
+        const initializeFirebase = async () => {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                    console.error("Firebase config is missing.");
+                    document.getElementById('loading').textContent = "Ralat: Konfigurasi Firebase tiada.";
+                    return;
+                }
+                
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // 1. Authenticate
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // 2. Auth State Listener
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('user-id-display').textContent = userId;
+                        isAuthReady = true;
+                        document.getElementById('loading').classList.add('hidden');
+                        document.getElementById('main-content').classList.remove('hidden');
+                        
+                        // 3. Start real-time listeners only after auth is ready
+                        setupRealtimeListeners();
+                    } else {
+                        // This should ideally not happen if token is provided or anonymous sign-in works
+                        userId = 'N/A';
+                        document.getElementById('user-id-display').textContent = 'Tidak Berjaya';
+                        isAuthReady = false;
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization or sign-in failed:", error);
+                document.getElementById('loading').textContent = `Ralat kritikal semasa permulaan: ${error.message}`;
+            }
+        };
+
+        const setupRealtimeListeners = () => {
+            if (!isAuthReady || !db) return;
+
+            // Listener for Teachers (Tab 1 & Tab 8)
+            onSnapshot(getTeachersCollectionRef(), (snapshot) => {
+                teachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTeacherList();
+                renderTeacherSelects();
+                // Clear CSV output when teacher data changes
+                document.getElementById('csv-output').value = '';
+                console.log("Teachers data updated:", teachers);
+            }, (error) => {
+                console.error("Error fetching teachers:", error);
+            });
+
+            // Listener for Meetings (Tab 8)
+            onSnapshot(getMeetingsCollectionRef(), (snapshot) => {
+                meetings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderMeetingSelects();
+                // If a meeting is currently selected for attendance, refresh the list
+                const selectedMeetingId = document.getElementById('meeting-select').value;
+                if (selectedMeetingId) {
+                    loadAttendanceList();
+                }
+                console.log("Meetings data updated:", meetings);
+            }, (error) => {
+                console.error("Error fetching meetings:", error);
+            });
+            
+            // Load content for Tabs 6 (Tabs 2, 3, 4, 5, 7, 9 are now Drive links)
+            loadDocumentData('strategic_plan_2026', 'data-strategic-plan');
+        };
+
+        // --- Tab 1: Teacher Management ---
+
+        window.addTeacher = async () => {
+            const name = document.getElementById('new-teacher-name').value.trim();
+            const ic = document.getElementById('new-teacher-ic').value.trim();
+
+            if (!name || !ic) {
+                showMessage('Sila isi Nama Penuh dan No. IC.', true);
+                return;
+            }
+
+            try {
+                // Ensure IC is unique (optional, but good practice)
+                if (teachers.some(t => t.ic === ic && t.status !== 'deleted')) {
+                    showMessage('No. IC ini telah didaftarkan.', true);
+                    return;
+                }
+
+                await setDoc(doc(getTeachersCollectionRef()), {
+                    name: name,
+                    ic: ic,
+                    createdAt: new Date().toISOString()
+                });
+
+                document.getElementById('new-teacher-name').value = '';
+                document.getElementById('new-teacher-ic').value = '';
+                showMessage('Guru baru berjaya didaftarkan.');
+
+            } catch (error) {
+                console.error("Error adding teacher:", error);
+                showMessage(`Ralat semasa menambah guru: ${error.message}`, true);
+            }
+        };
+
+        window.deleteTeacher = async (teacherId) => {
+            // Use custom modal prompt instead of confirm()
+            const confirmDelete = window.confirm ? window.confirm('Adakah anda pasti ingin memadam rekod guru ini?') : true;
+            if (!confirmDelete) return;
+            
+            try {
+                // We use setDoc with merge to soft delete (add a status field instead of hard deleting)
+                await setDoc(doc(getTeachersCollectionRef(), teacherId), { status: 'deleted' }, { merge: true });
+                showMessage('Rekod guru telah dipadam (Ditanda sebagai "deleted").');
+            } catch (error) {
+                console.error("Error deleting teacher:", error);
+                showMessage(`Ralat semasa memadam guru: ${error.message}`, true);
+            }
+        };
+
+        const renderTeacherList = () => {
+            const listContainer = document.getElementById('teacher-list');
+            listContainer.innerHTML = '';
+
+            const activeTeachers = teachers.filter(t => t.status !== 'deleted');
+            
+            if (activeTeachers.length === 0) {
+                 listContainer.innerHTML = '<div class="text-gray-500 p-3 border rounded-lg bg-yellow-50">Tiada guru aktif. Sila daftar guru di atas.</div>';
+                 return;
+            }
+
+            activeTeachers.forEach(teacher => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm';
+                item.innerHTML = `
+                    <div>
+                        <p class="font-medium text-gray-800">${teacher.name}</p>
+                        <p class="text-sm text-gray-500">IC: ${teacher.ic}</p>
+                    </div>
+                    <button onclick="deleteTeacher('${teacher.id}')" class="text-red-500 hover:text-red-700 transition">
+                        <!-- Icon Trash -->
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                `;
+                listContainer.appendChild(item);
+            });
+        };
+
+        window.exportTeachersToCSV = () => {
+            const activeTeachers = teachers.filter(t => t.status !== 'deleted');
+            
+            if (activeTeachers.length === 0) {
+                showMessage('Tiada data guru untuk dieksport.', true);
+                return;
+            }
+
+            const header = "NAMA PENUH,NO. K/P\n";
+            const csvRows = activeTeachers.map(t => 
+                `"${t.name.replace(/"/g, '""')}",${t.ic}`
+            ).join('\n');
+
+            const csvContent = header + csvRows;
+            
+            // 1. Display in textarea for easy manual copy
+            document.getElementById('csv-output').value = csvContent;
+
+            // 2. Trigger download (optional, but convenient)
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'data_guru_panitia.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showMessage(`Berjaya mengeksport ${activeTeachers.length} rekod. Muat turun CSV telah dimulakan.`);
+        };
+
+
+        const renderTeacherSelects = () => {
+            const selectSijil = document.getElementById('teacher-select-sijil');
+            selectSijil.innerHTML = '<option value="">-- Pilih Guru --</option>';
+
+            teachers.filter(t => t.status !== 'deleted').forEach(teacher => {
+                const option = new Option(teacher.name, teacher.id);
+                selectSijil.add(option);
+            });
+        };
+
+
+        // --- Tabs 6: Document Management (Firestore) ---
+
+        window.saveDocument = async (docName, elementId) => {
+            const data = document.getElementById(elementId).value;
+            const docRef = getPublicDocRef(docName);
+
+            if (!data.trim()) {
+                showMessage('Kandungan dokumen tidak boleh kosong.', true);
+                return;
+            }
+
+            try {
+                await setDoc(docRef, { 
+                    content: data,
+                    updatedBy: userId,
+                    updatedAt: new Date().toISOString()
+                });
+                showMessage(`Dokumen '${docName.toUpperCase()}' berjaya disimpan.`);
+            } catch (error) {
+                console.error(`Error saving document ${docName}:`, error);
+                showMessage(`Ralat semasa menyimpan dokumen: ${error.message}`, true);
+            }
+        };
+
+        const loadDocumentData = async (docName, elementId) => {
+            if (!isAuthReady || !db) return;
+            const docRef = getPublicDocRef(docName);
+            
+            // Use onSnapshot to keep it real-time
+            onSnapshot(docRef, (docSnap) => {
+                // Ensure the element still exists 
+                const element = document.getElementById(elementId);
+                if (docSnap.exists() && element) {
+                    element.value = docSnap.data().content || '';
+                } else if (element) {
+                    element.value = ''; // Clear if document does not exist
+                }
+            }, (error) => {
+                console.error(`Error loading document ${docName}:`, error);
+            });
+        };
+
+        // --- Tab 8: Meeting Management ---
+
+        window.createMeeting = async () => {
+            const title = document.getElementById('meeting-title').value.trim();
+            const dateStr = document.getElementById('meeting-date').value;
+            const materials = document.getElementById('meeting-materials').value.trim();
+
+            if (!title || !dateStr) {
+                showMessage('Sila isi Tajuk dan Tarikh Mesyuarat.', true);
+                return;
+            }
+
+            try {
+                const meetingData = {
+                    title: title,
+                    date: dateStr,
+                    materials: materials,
+                    attendance: [], // Stores teacher IDs who attended
+                    createdBy: userId,
+                    createdAt: new Date().toISOString()
+                };
+
+                await setDoc(doc(getMeetingsCollectionRef()), meetingData);
+
+                // Clear form
+                document.getElementById('meeting-title').value = '';
+                document.getElementById('meeting-date').value = '';
+                document.getElementById('meeting-materials').value = '';
+
+                showMessage('Mesyuarat baru berjaya didaftarkan.');
+            } catch (error) {
+                console.error("Error creating meeting:", error);
+                showMessage(`Ralat semasa mendaftar mesyuarat: ${error.message}`, true);
+            }
+        };
+
+        const renderMeetingSelects = () => {
+            const selectAttendance = document.getElementById('meeting-select');
+            const selectSijil = document.getElementById('meeting-select-sijil');
+
+            [selectAttendance, selectSijil].forEach(select => {
+                const currentVal = select.value;
+                select.innerHTML = '<option value="">-- Pilih Mesyuarat --</option>';
+                
+                meetings.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(meeting => {
+                    const dateDisplay = new Date(meeting.date).toLocaleDateString('ms-MY', { year: 'numeric', month: 'short', day: 'numeric' });
+                    const option = new Option(`${meeting.title} (${dateDisplay})`, meeting.id);
+                    select.add(option);
+                });
+
+                select.value = currentVal; // Restore selection
+            });
+            
+            // Ensure attendance button is disabled if no meeting is selected
+            document.getElementById('save-attendance-btn').disabled = !selectAttendance.value;
+        };
+
+        window.loadAttendanceList = () => {
+            const meetingId = document.getElementById('meeting-select').value;
+            const listContainer = document.getElementById('attendance-list-container');
+            const saveBtn = document.getElementById('save-attendance-btn');
+            listContainer.innerHTML = '';
+            
+            if (!meetingId) {
+                listContainer.innerHTML = '<p class="text-gray-500 italic">Pilih mesyuarat di atas untuk mengambil kehadiran.</p>';
+                saveBtn.disabled = true;
+                return;
+            }
+            
+            saveBtn.disabled = false;
+            
+            const selectedMeeting = meetings.find(m => m.id === meetingId);
+            const activeTeachers = teachers.filter(t => t.status !== 'deleted');
+
+            if (activeTeachers.length === 0) {
+                 listContainer.innerHTML = '<p class="text-red-500 italic">Tiada guru aktif didaftarkan. Sila daftar guru di Tab 1.</p>';
+                 saveBtn.disabled = true;
+                 return;
+            }
+
+            activeTeachers.forEach(teacher => {
+                const isAttended = selectedMeeting?.attendance?.includes(teacher.id) || false;
+
+                const item = document.createElement('div');
+                item.className = 'flex items-center p-2 border rounded-lg bg-white shadow-sm';
+                item.innerHTML = `
+                    <input type="checkbox" id="attend-${teacher.id}" data-teacher-id="${teacher.id}" class="h-5 w-5 text-blue-600 rounded focus:ring-blue-500" ${isAttended ? 'checked' : ''}>
+                    <label for="attend-${teacher.id}" class="ml-3 text-sm font-medium text-gray-700">${teacher.name} (IC: ${teacher.ic})</label>
+                `;
+                listContainer.appendChild(item);
+            });
+        };
+
+        window.saveAttendance = async () => {
+            const meetingId = document.getElementById('meeting-select').value;
+            if (!meetingId) {
+                showMessage('Sila pilih mesyuarat terlebih dahulu.', true);
+                return;
+            }
+            
+            const meetingRef = doc(getMeetingsCollectionRef(), meetingId);
+            const checkboxes = document.querySelectorAll('#attendance-list-container input[type="checkbox"]');
+            
+            let newAttendanceList = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    newAttendanceList.push(cb.dataset.teacherId);
+                }
+            });
+
+            try {
+                await updateDoc(meetingRef, {
+                    attendance: newAttendanceList,
+                    attendanceUpdatedBy: userId,
+                    attendanceUpdatedAt: new Date().toISOString()
+                });
+                showMessage('Kehadiran mesyuarat berjaya dikemaskini.');
+            } catch (error) {
+                console.error("Error saving attendance:", error);
+                showMessage(`Ralat semasa menyimpan kehadiran: ${error.message}`, true);
+            }
+        };
+
+
+        // --- Certificate Generation ---
+
+        window.openCertificateModal = () => {
+            const teacherId = document.getElementById('teacher-select-sijil').value;
+            const meetingId = document.getElementById('meeting-select-sijil').value;
+
+            if (!teacherId || !meetingId) {
+                showMessage('Sila pilih Guru dan Mesyuarat untuk sijil.', true);
+                return;
+            }
+
+            const teacher = teachers.find(t => t.id === teacherId);
+            const meeting = meetings.find(m => m.id === meetingId);
+            
+            if (!teacher || !meeting) {
+                showMessage('Data guru atau mesyuarat tidak ditemui.', true);
+                return;
+            }
+            
+            const hasAttended = meeting.attendance.includes(teacherId);
+            if (!hasAttended) {
+                 showMessage('Guru ini TIADA dalam rekod kehadiran mesyuarat tersebut. Sijil tidak akan dijana.', true);
+                 return;
+            }
+
+            const meetingDate = new Date(meeting.date).toLocaleDateString('ms-MY', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            document.getElementById('cert-recipient-name').textContent = teacher.name.toUpperCase();
+            document.getElementById('cert-recipient-ic').textContent = `No. K/P: ${teacher.ic}`;
+            document.getElementById('cert-meeting-title').textContent = meeting.title.toUpperCase();
+            document.getElementById('cert-meeting-date').textContent = meetingDate;
+
+            document.getElementById('certificate-modal').classList.remove('hidden');
+        };
+
+        window.closeCertificateModal = () => {
+            document.getElementById('certificate-modal').classList.add('hidden');
+        };
+
+        window.downloadCertificate = () => {
+            const template = document.getElementById('certificate-template');
+            
+            // Temporarily adjust size for better quality screenshot
+            const originalWidth = template.style.width;
+            const originalHeight = template.style.height;
+            template.style.width = '1200px';
+            template.style.height = '848px'; // A4 ratio 1.414
+
+            html2canvas(template, { 
+                scale: 2, // Double resolution for crisp text
+                useCORS: true 
+            }).then(canvas => {
+                // Restore original size
+                template.style.width = originalWidth;
+                template.style.height = originalHeight;
+                
+                const link = document.createElement('a');
+                const teacherName = document.getElementById('cert-recipient-name').textContent.toLowerCase().replace(/\s/g, '_');
+                const meetingTitle = document.getElementById('cert-meeting-title').textContent.toLowerCase().replace(/\s/g, '_').substring(0, 20);
+
+                link.download = `sijil_${teacherName}_${meetingTitle}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        };
+
+        // --- UI/Tab Management ---
+
+        window.switchTab = (tabIndex) => {
+            // Hide all tab panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.add('hidden');
+            });
+
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show the selected tab pane
+            const selectedPane = document.getElementById(`tab-${tabIndex}`);
+            if (selectedPane) {
+                selectedPane.classList.remove('hidden');
+            }
+
+            // Activate the selected tab button
+            const selectedButton = document.querySelector(`.tab-button[data-tab="${tabIndex}"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('active');
+            }
+            
+            // Special handling for tab 8
+            if (tabIndex == 8) {
+                // Ensure latest attendance list is loaded if a meeting is already selected
+                loadAttendanceList();
+            }
+        };
+
+        // Initialize App on load
+        window.onload = initializeFirebase;
+
+    </script>
+</body>
+</html>
